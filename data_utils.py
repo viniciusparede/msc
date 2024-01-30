@@ -3322,6 +3322,48 @@ def create_dataset(words, labels) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
     return pd.concat(train_dfs, ignore_index=True), pd.concat(valid_dfs, ignore_index=True), pd.concat(test_dfs, ignore_index=True)
 
 
+def clean_dataset(dataset: Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def emotions_to_category(row):
+        emotions = ["Happiness", "Sadness", "Anger", "Fear", "Disgust", "Surprise"]
+
+        # Criar uma lista de tuplas (emocao, média)
+        emotions_average = [(emotion, row[emotion]) for emotion in emotions]
+
+        # Verifica se todos as médias são zeros
+        if all(average == 0 for _, average in emotions_average):
+            return "Neutral"
+
+        # Conta quantas tuplas têm a média diferente de zero
+        count_non_zero = sum(average != 0 for _, average in emotions_average)
+
+        # Verifica se apenas uma tupla têm média diferente de zero
+        if count_non_zero == 1:
+            for emotion, average in emotions_average:
+                if average != 0:
+                    return emotion
+        
+        # MultiLabel: Escolhe a emoção com a maior média se houver mais de uma média diferente de zero
+        if count_non_zero > 1:
+            sorted_emotions = sorted(emotions_average, key=lambda x: x[1], reverse=True)
+            # Verifica se há um empate na maior média
+            if sorted_emotions[0][1] == sorted_emotions[1][1]:
+                return "Indefinido"  # Ou pode retornar None
+            return sorted_emotions[0][0]
+
+        return None
+    
+   
+
+    cleaned_dataset = [pd.DataFrame(), pd.DataFrame(), pd.DataFrame()]
+
+    for i, df in enumerate(dataset):
+        df["Emotion_Category"] = df.apply(emotions_to_category, axis=1)
+        cleaned_df = df.loc[df["Emotion_Category"] != "Indefinido"].copy()
+        cleaned_df.drop(columns=["Sentiment", "Happiness", "Sadness", "Anger", "Fear", "Disgust", "Surprise"], inplace=True)
+        cleaned_dataset[i] = cleaned_df
+
+    return tuple(cleaned_dataset) 
+
 def read_cmu_mosei(data_dir: str):
     dataset = mmdatasdk.mmdataset(data_dir)
     words = dataset.computational_sequences["words"]
@@ -3334,10 +3376,10 @@ def main():
     cmumosei_dir = "/home/vinicius/Documentos/Repositories/test-cmumosei/data"
     words, labels = read_cmu_mosei(data_dir=cmumosei_dir)
 
-    train, valid, test = create_dataset(words, labels)
-    print(train.shape)
-    print(valid.shape)
-    print(test.shape)
+    df = create_dataset(words, labels)
+    train, valid, test = clean_dataset(df)
+    print()
+
 
 
 if __name__ == "__main__":
