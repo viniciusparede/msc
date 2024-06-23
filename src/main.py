@@ -126,7 +126,7 @@ if __name__ == "__main__":
     # Reduzir o conjunto de train para 50 amostras de cada classe
     train_reduced = reduce_samples(train, n_samples=50)
 
-    HUGGING_FACE_API_KEY = "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"
+    HUGGING_FACE_API_KEY = ""
 
     answers = []
 
